@@ -1,50 +1,18 @@
-# 
-# 	Copyright 2008, 2009 Michel Pollet <buserror@gmail.com>
-#
-#	This file is part of simavr.
-#
-#	simavr is free software: you can redistribute it and/or modify
-#	it under the terms of the GNU General Public License as published by
-#	the Free Software Foundation, either version 3 of the License, or
-#	(at your option) any later version.
-#
-#	simavr is distributed in the hope that it will be useful,
-#	but WITHOUT ANY WARRANTY; without even the implied warranty of
-#	MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-#	GNU General Public License for more details.
-#
-#	You should have received a copy of the GNU General Public License
-#	along with simavr.  If not, see <http://www.gnu.org/licenses/>.
-
 target=	led_sim
-firm_src = ${wildcard at*${board}.c}
-firmware = ${firm_src:.c=.axf}
-simavr = ../../
+simavr = ../lib/simavr
 
-IPATH = .
-IPATH += ../parts
-IPATH += ${simavr}/include
-IPATH += ${simavr}/simavr/sim
+src = $(wildcard *.c)
+obj = $(src:.c=.o)
 
-VPATH = .
-VPATH += ../parts
+libsimavr = ${simavr}/simavr/obj-x86_64-linux-gnu/
+libsimavrparts = ${simavr}/examples/parts/obj-x86_64-linux-gnu/
 
-LDFLAGS += -lpthread
+CFLAGS=-I../lib/simavr/simavr/sim/ -I ../lib/simavr/examples/parts/
 
-include ../Makefile.opengl
+LDFLAGS = "-Wl,-z,origin" "-Wl,-rpath,\$$ORIGIN/${libsimavr}" "-Wl,-rpath,\$$ORIGIN/${libsimavrparts}" -L${libsimavr} -lsimavr -L${libsimavrparts} -lsimavrparts -lm -lpthread -lglut -lutil -lGL -lelf
 
-all: obj ${firmware} ${target}
+led_sim: $(obj)
+	$(CC) -o $@ $^ $(LDFLAGS)
 
-include ${simavr}/Makefile.common
-
-board = ${OBJ}/${target}.elf
-
-${board} : ${OBJ}/button.o
-${board} : ${OBJ}/ws2812.o
-${board} : ${OBJ}/${target}.o
-
-${target}: ${board}
-	@echo $@ done
-
-clean: clean-${OBJ}
-	rm -rf *.a *.axf ${target} *.vcd *.hex
+clean: 
+	rm ${target} *.o
