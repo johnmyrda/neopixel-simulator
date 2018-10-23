@@ -149,6 +149,10 @@ static void * avr_run_thread(void * oaram)
 	return NULL;
 }
 
+void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, const uint64_t time_in_ns){
+        printf("time: %ldns\n", time_in_ns);
+}
+
 
 int main(int argc, char *argv[])
 {
@@ -180,7 +184,9 @@ int main(int argc, char *argv[])
 
 	// initialize our 'peripheral'
 	button_init(avr, &button, "button");
-	ws2812_init(avr, &led_strip);
+        uint32_t NUM_LEDS = 100;
+	rgb_pixel_t pixels[NUM_LEDS];
+        ws2812_init(avr, &led_strip, pixels, NUM_LEDS, pixels_done_hook);
         // "connect" the output irw of the button to the port pin of the AVR
 	avr_connect_irq(
 		button.irq + IRQ_BUTTON_OUT,
@@ -266,7 +272,7 @@ int main(int argc, char *argv[])
 		//printf("a ");
 	}
 
-	printf("time stopped at %ldns", time_nsec);
+	printf("time stopped at %ldns\n", time_nsec);
 	avr_vcd_stop(&vcd_file);
 	exit(0);
 //	glutMainLoop();

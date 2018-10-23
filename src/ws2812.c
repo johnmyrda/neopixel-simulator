@@ -15,25 +15,23 @@ void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param
     ws2812_run(time_nsec, value, led_metadata);
 }
 
-void ws2812_init(struct avr_t * avr, ws2812_t * led_metadata){
+void ws2812_init(struct avr_t * avr, ws2812_t * led_metadata, rgb_pixel_t * pixels, uint32_t strip_length, latch_callback_t cb){
     *led_metadata = (struct ws2812_t) {0};
 
     led_metadata->avr = avr;
     led_metadata->irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
+    led_metadata->pixels = pixels;
+    led_metadata->strip_length = strip_length;
+    led_metadata->latch_callback = cb;
     avr_irq_register_notify(led_metadata->irq, ws2812_pin_changed_hook, led_metadata);
-
 }
 
 void ws2812_high(uint64_t time, ws2812_t * led_metadata){
-	//printf("hiiiii time=%ld", time);
-
 	if(T0H.low < time && time < T0H.high){
 		led_metadata->cur_bit = 0;
-		//printf(" one\n");
 	} else 
 	if (T1H.low < time && time < T1H.high){
 		led_metadata->cur_bit = 1;
-		//printf(" zero\n");
 	} else {
 		led_metadata->cur_bit = 1;
 	}
@@ -48,7 +46,10 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 		if(led_metadata->cur_bit_index >= 8){
 			led_metadata->cur_bit_index = 0;
 			//printf("byte value: %d\n", led_metadata->cur_byte);
-			rgb_pixel_t * pixel = &led_metadata->pixel;
+                        if(led_metadata->cur_byte_index < led_metadata->strip_length*sizeof(rgb_pixel_t)){
+                                printf("byte index: %d pixel size %ld\n", led_metadata->cur_byte_index, sizeof(rgb_pixel_t));
+                                }
+			/*rgb_pixel_t * pixel = &led_metadata->pixel;
 			switch(led_metadata->cur_byte_index % 3)
 			{
 				case 0:
@@ -61,7 +62,7 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 					pixel->blue = led_metadata->cur_byte;
 					printf("R,G,B: %d,%d,%d\n", pixel->red,pixel->green,pixel->blue);
 					break;
-			}
+			}*/
 			led_metadata->cur_byte = 0;
 			led_metadata->cur_byte_index++;
 		}
@@ -69,6 +70,7 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 	if(TLL.low < time){
 		led_metadata->cur_byte = (led_metadata->cur_bit << led_metadata->cur_bit_index) | led_metadata->cur_byte;
 		printf("latched. byte value: %d\n", led_metadata->cur_byte);
+                led_metadata->latch_callback(led_metadata->pixels, led_metadata->strip_length, time);
 		led_metadata->cur_byte = 0;
 		led_metadata->cur_bit_index = 0;
 		led_metadata->cur_byte_index = 0;
