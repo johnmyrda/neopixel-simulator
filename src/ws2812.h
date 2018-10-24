@@ -18,7 +18,6 @@ typedef struct ws2812_t
 	avr_irq_t * irq;
 	struct avr_t * avr;
         uint64_t last_pin_change_time;
-	uint32_t last_pin_change_value;
         latch_callback_t latch_callback;
         rgb_pixel_t * pixels;
         uint32_t strip_length;
@@ -42,6 +41,6 @@ void ws2812_run(uint64_t time, uint32_t value, ws2812_t * led_metadata);
 
 void ws2812_low(uint64_t time, ws2812_t * led_metadata);
 
-void ws2812_high(uint64_t time, ws2812_t * led_metadata);
+_Bool ws2812_high(uint64_t time);
 
 #endif 
