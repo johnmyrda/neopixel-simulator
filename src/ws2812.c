@@ -58,7 +58,7 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 	} else
 	if(TLL.low < time && led_metadata->cur_byte_index){
 		led_metadata->cur_byte = (led_metadata->cur_bit << led_metadata->cur_bit_index) | led_metadata->cur_byte;
-		printf("latched.", led_metadata->cur_byte);
+		printf("latched.");
                 led_metadata->latch_callback(led_metadata->pixels, led_metadata->cur_byte_index / sizeof(rgb_pixel_t), led_metadata->last_pin_change_time);
 		led_metadata->cur_byte = 0;
 		led_metadata->cur_bit_index = 0;
