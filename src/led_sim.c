@@ -80,10 +80,34 @@ static void * avr_run_thread(void * oaram)
 	return NULL;
 }
 
-void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, const uint64_t time_in_ns){
-        printf("time: %ldns\n", time_in_ns);
+
+//debug function to print truecolor rgb in terminal
+void pixels_to_truecolor(const rgb_pixel_t * pixels, uint32_t strip_length){
+        const char filled_square_format_string[] = "\x1b[47m\x1b[38;2;%d;%d;%dm\u25A0 \x1b[0m";
+        const char empty_square_string[]         = "\x1b[47m\x1b[38;2;255;255;255m\u25A1 \x1b[0m";
+
+        printf("strip_length: %d, hex: ", strip_length);
+        for(int i=0; i < strip_length; i++){
+                uint32_t hex_value = pixels[i].red << 16 | pixels[i].green << 8 | pixels[i].blue;
+                printf("#%06x ",hex_value);         
+        }
+        printf("\n");
+
+        for(int i=0; i < strip_length; i++){
+                rgb_pixel_t p = pixels[i];
+                if(p.red != 0 || p.green != 0 || p.blue != 0){
+                        printf(filled_square_format_string,p.red,p.blue,p.green);
+                } else {
+                        printf(empty_square_string);       
+                }
+        }
+        printf("\n");
 }
 
+void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, const uint64_t time_in_ns){
+        printf("time: %ldns\n", time_in_ns);
+        pixels_to_truecolor(pixels, strip_length);
+}
 
 int main(int argc, char *argv[])
 {
@@ -115,7 +139,7 @@ int main(int argc, char *argv[])
 
 	// initialize our 'peripheral'
 	button_init(avr, &button, "button");
-        uint32_t NUM_LEDS = 100;
+        uint32_t NUM_LEDS = 6;
 	rgb_pixel_t pixels[NUM_LEDS];
         ws2812_init(avr, &led_strip, pixels, NUM_LEDS, pixels_done_hook);
         // "connect" the output irw of the button to the port pin of the AVR
