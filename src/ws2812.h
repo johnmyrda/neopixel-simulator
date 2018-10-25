@@ -2,6 +2,7 @@
 #define __WS2812_H__
 
 #include <stdio.h>
+#include <string.h>
 #include "sim_irq.h"
 #include "sim_time.h"
 

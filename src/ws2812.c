@@ -20,6 +20,7 @@ void ws2812_init(struct avr_t * avr, ws2812_t * led_metadata, rgb_pixel_t * pixe
 
     led_metadata->avr = avr;
     led_metadata->irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
+    memset(pixels, 0, sizeof(rgb_pixel_t)*strip_length);
     led_metadata->pixels = pixels;
     led_metadata->strip_length = strip_length;
     led_metadata->latch_callback = cb;
