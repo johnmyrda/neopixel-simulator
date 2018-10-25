@@ -47,6 +47,8 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 			led_metadata->cur_bit_index = 0;
 			//printf("byte value: %d\n", led_metadata->cur_byte);
                         if(led_metadata->cur_byte_index < led_metadata->strip_length*sizeof(rgb_pixel_t)){
+                                //cast the pixels to a uint8_t pointer so i can count by bytes
+                                ((uint8_t *)led_metadata->pixels)[led_metadata->cur_byte_index] = led_metadata->cur_byte;
                                 //printf("byte index: %d pixel size %ld\n", led_metadata->cur_byte_index, sizeof(rgb_pixel_t));
                                 }
 			led_metadata->cur_byte = 0;
