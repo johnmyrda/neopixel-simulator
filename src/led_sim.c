@@ -111,7 +111,7 @@ void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, c
 
 int main(int argc, char *argv[])
 {
-	elf_firmware_t f;
+        elf_firmware_t f;
 
 	const char * fname;
 	if(argc == 1){
@@ -158,15 +158,6 @@ int main(int argc, char *argv[])
 
 	// 'raise' it, it's a "pullup"
 	avr_raise_irq(button.irq + IRQ_BUTTON_OUT, 1);
-
-	printf( "Demo launching: 'LED' bar is PORTB, updated every 1/64s by the AVR\n"
-			"   firmware using a timer. If you press 'space' this presses a virtual\n"
-			"   'button' that is hooked to the virtual PORTC pin 0 and will\n"
-			"   trigger a 'pin change interrupt' in the AVR core, and will 'invert'\n"
-			"   the display.\n"
-			"   Press 'q' to quit\n\n"
-			"   Press 's' to stop recording\n"
-			);
 
 	// the AVR run on it's own thread. it even allows for debugging!
 
