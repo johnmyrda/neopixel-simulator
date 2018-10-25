@@ -7,7 +7,7 @@ obj = $(src:.c=.o)
 libsimavr = ${simavr}/simavr/obj-x86_64-linux-gnu/
 libsimavrparts = ${simavr}/examples/parts/obj-x86_64-linux-gnu/
 
-CFLAGS=-I../lib/simavr/simavr/sim/ -I ../lib/simavr/examples/parts/
+CFLAGS+=-I../lib/simavr/simavr/sim/ -I ../lib/simavr/examples/parts/ -Wall -Werror -O2
 
 LDFLAGS = "-Wl,-z,origin" "-Wl,-rpath,\$$ORIGIN/${libsimavr}" "-Wl,-rpath,\$$ORIGIN/${libsimavrparts}" -L${libsimavr} -lsimavr -L${libsimavrparts} -lsimavrparts -lm -lpthread -lglut -lutil -lGL -lelf
 
