@@ -1,3 +1,5 @@
+CFLAGS=-O2 -Werror -Wall
+
 all: simulator
 
 simulator: simavr
