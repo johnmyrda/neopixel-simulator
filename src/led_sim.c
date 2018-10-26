@@ -24,6 +24,7 @@
 #include <libgen.h>
 #include <string.h>
 #include <pthread.h>
+#include <argp.h>
 #include <errno.h>
 
 #include <sys/types.h>
@@ -117,18 +118,73 @@ void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, c
         fflush(fp);
 }
 
+const char *argp_program_version = "0.0.1";
+static char doc[] =
+  "Simulates a neopixel led strip";
+static char args_doc[] = "firmware";
+
+static struct argp_option options[] = {
+        {"sim-time-ns", 'n', "duration", OPTION_HIDDEN},
+        {"sim-time", 't', "duration", 0, "Simulation duration in seconds. Default: 1"},
+        {0}
+        };
+struct arguments{
+        char *args[1];
+        uint64_t sim_time;
+        uint64_t sim_time_ns;
+        };
+
+static error_t parse_opt(int key, char *arg, struct argp_state *state){
+        struct arguments *arguments = state->input;
+
+        switch(key)
+        {
+        case 'n':
+            arguments->sim_time_ns = strtoull(arg, NULL, 10);
+        case 't':
+            arguments->sim_time = strtoull(arg, NULL, 10);
+            break;
+        case ARGP_KEY_ARG:
+            //too many arguments
+            if (state->arg_num >=2){
+                argp_usage(state);        
+            }
+            arguments->args[state->arg_num] = arg;
+            break;
+        case ARGP_KEY_END:
+            //not enough arguments
+            if (state->arg_num <1){
+                printf("ARGP_KEY_END\n");
+                argp_usage(state);
+            }
+            break;
+        default:
+            return ARGP_ERR_UNKNOWN;
+        }
+
+        return 0;
+}
+
+static struct argp argp = { options, parse_opt, args_doc, doc };
+
 int main(int argc, char *argv[])
 {
-        elf_firmware_t f;
+    //default arguments
+    struct arguments arguments;
+    arguments.sim_time_ns = 1000000000;
 
-	const char * fname;
-	if(argc == 1){
-		printf("Usage: %s firmware.elf\n", argv[0]);
-		exit(1);	
-	} else {
-		fname = argv[1];
-	}
-	
+    argp_parse(&argp, argc, argv, 0,0,&arguments);
+    if(arguments.sim_time != 0){
+            arguments.sim_time_ns = arguments.sim_time*1000000000;
+            }
+	const char * fname = arguments.args[0];
+
+    if( access(fname, F_OK) < 0){
+        printf("Could not find file %s\n", fname);
+        exit(1);
+    }
+
+    elf_firmware_t f;
 	elf_read_firmware(fname, &f);
 
 	f.frequency = 16000000;
@@ -187,7 +243,7 @@ int main(int argc, char *argv[])
 	pthread_create(&run, NULL, avr_run_thread, NULL);
 
 	uint64_t time_nsec = 0;
-	while(time_nsec < 400000000){
+	while(time_nsec < arguments.sim_time_ns){
 		pthread_mutex_lock(&avr_mutex);
 		time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
 		pthread_mutex_unlock(&avr_mutex);
