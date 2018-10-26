@@ -106,11 +106,12 @@ void pixels_to_truecolor(const rgb_pixel_t * pixels, uint32_t strip_length){
 }
 
 void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, const uint64_t time_in_ns){
-        printf("time: %ldns\n", time_in_ns);
-        pixels_to_truecolor(pixels, strip_length);
-
-        int write_result = fwrite(pixels, sizeof(rgb_pixel_t), strip_length, fp);
-        if(write_result < -1){
+        //printf("time: %ldns\n", time_in_ns);
+        //pixels_to_truecolor(pixels, strip_length);
+        int time_write = fwrite(&time_in_ns, sizeof(time_in_ns), 1, fp);        
+        int length_write = fwrite(&strip_length, sizeof(strip_length), 1, fp);
+        int pixel_write = fwrite(pixels, sizeof(pixels[0]), strip_length, fp);
+        if(length_write < 0 || pixel_write < 0 || time_write < 0){
                 printf("write error!");
                 }
         fflush(fp);
