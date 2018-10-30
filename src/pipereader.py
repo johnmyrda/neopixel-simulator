@@ -31,22 +31,29 @@ def main():
     while True:
             length = 0
             with open(FIFO, 'rb') as f:
+                csv = list()
                 time_b = f.read(8)
                 if not time_b:
                         break
                 time = struct.unpack('L', time_b)[0]
-                print("time: {}s ({}ns)".format(time/1000000000, time)) 
+                #print("time: {}s ({}ns)".format(time/1000000000, time)) 
+                csv.append(time)
                 length_b = f.read(4)
                 if not length_b:
                         break
                 length = struct.unpack('I', length_b)[0]
-                print("strip length {}".format(length))
+                #print("strip length {}".format(length))
+                csv.append(length)
                 if length > 0:
                     pixels_b = f.read(length*3)
+                    #print(pixels_b)
                     for i in range(length):
-                            pixel_tuple = struct.unpack("BBB", pixels_b[i*3:i*3+3])
-                            pixel = RGBW(*pixel_tuple)
-                            print(pixel)
+                            #pixel_tuple = struct.unpack("BBB", pixels_b[i*3:i*3+3])
+                            hex_bytes = pixels_b[i*3:i*3+3].hex()
+                            csv.append(hex_bytes)
+                            #pixel = RGBW(*pixel_tuple)
+                            #print(pixel)
+                print(",".join(str(x) for x in csv))
    
 
 
