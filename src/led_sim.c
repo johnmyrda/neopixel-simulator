@@ -203,7 +203,7 @@ int main(int argc, char *argv[])
 
 	// initialize our 'peripheral'
 	button_init(avr, &button, "button");
-        uint32_t NUM_LEDS = 6;
+        uint32_t NUM_LEDS = 32;
 	rgb_pixel_t pixels[NUM_LEDS];
         ws2812_init(avr, &led_strip, pixels, NUM_LEDS, pixels_done_hook);
         // "connect" the output irw of the button to the port pin of the AVR
