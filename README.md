@@ -11,8 +11,16 @@ Here's an example of how to run the simulator:
 
 ```
 make
-./src/led_sim test/RGBCalibrate.ino.elf
+./src/led_sim -f test/RGBCalibrate.ino.elf -t 10
 ```
+
+In another window, run pipereader:
+
+```
+./src/pipereader.py
+```
+
+CSV formatted RGB values should be written to STDOUT.
 
 ## Limitations
 
