@@ -24,7 +24,6 @@
 #include <libgen.h>
 #include <string.h>
 #include <pthread.h>
-#include <argp.h>
 #include <errno.h>
 
 #include <sys/types.h>
@@ -118,78 +117,58 @@ void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, c
         fflush(fp);
 }
 
-const char *argp_program_version = "0.0.1";
-static char doc[] =
-  "Simulates a neopixel led strip";
-static char args_doc[] = "firmware";
-
-static struct argp_option options[] = {
-        {"sim-time-ns", 'n', "duration", OPTION_HIDDEN},
-        {"sim-time", 't', "duration", 0, "Simulation duration in seconds. Default: 1"},
-        {0}
-        };
-struct arguments{
-        char *args[1];
+struct arg_struct{
+        char *filename;
         uint64_t sim_time;
         uint64_t sim_time_ns;
         };
 
-static error_t parse_opt(int key, char *arg, struct argp_state *state){
-        struct arguments *arguments = state->input;
-
-        switch(key)
-        {
-        case 'n':
-            arguments->sim_time_ns = strtoull(arg, NULL, 10);
-        case 't':
-            arguments->sim_time = strtoull(arg, NULL, 10);
-            break;
-        case ARGP_KEY_ARG:
-            //too many arguments
-            if (state->arg_num >=2){
-                argp_usage(state);        
-            }
-            arguments->args[state->arg_num] = arg;
-            break;
-        case ARGP_KEY_END:
-            //not enough arguments
-            if (state->arg_num <1){
-                printf("ARGP_KEY_END\n");
-                argp_usage(state);
-            }
-            break;
-        default:
-            return ARGP_ERR_UNKNOWN;
-        }
-
-        return 0;
+void usage(){
+    fprintf(stderr, "usage: led_sim -t 10 -f firmware.elf\n");
+    exit(2);
 }
-
-static struct argp argp = { options, parse_opt, args_doc, doc };
 
 int main(int argc, char *argv[])
 {
     //default arguments
-    struct arguments arguments;
+    struct arg_struct arguments;
     arguments.sim_time_ns = 1000000000;
 
-    argp_parse(&argp, argc, argv, 0,0,&arguments);
+    int opt;
+    while ((opt = getopt(argc, argv, ":n:t:f:")) != -1){
+        switch(opt) {
+            case 'n':
+                arguments.sim_time_ns = strtoull(optarg, NULL, 10);
+                break;
+            case 't':
+                arguments.sim_time = strtoull(optarg, NULL, 10);
+                break;
+            case 'f':
+                arguments.filename = optarg;
+                break;
+            case ':':
+                fprintf(stderr, "Option -%c requires an operand\n", optopt);
+                usage();
+                break;          
+        }
+    }
+
     if(arguments.sim_time != 0){
             arguments.sim_time_ns = arguments.sim_time*1000000000;
-            }
-	const char * fname = arguments.args[0];
+    }
 
-    if( access(fname, F_OK) < 0){
-        printf("Could not find file %s\n", fname);
+    if( access(arguments.filename, F_OK) < 0){
+        printf("Could not find file %s\n", arguments.filename);
         exit(1);
     }
 
     elf_firmware_t f;
-	elf_read_firmware(fname, &f);
+	elf_read_firmware(arguments.filename, &f);
 
 	f.frequency = 16000000;
-	strncat(f.mmcu, fname, sizeof(f.mmcu)-1);
-	printf("firmware %s f=%d mmcu=%s\n", fname, (int)f.frequency, f.mmcu);
+	strncat(f.mmcu, arguments.filename, sizeof(f.mmcu)-1);
+	printf("firmware %s f=%d mmcu=%s\n", arguments.filename, (int)f.frequency, f.mmcu);
+    printf("sim_time=%llu sim_time_ns=%llu\n", arguments.sim_time, arguments.sim_time_ns);
 
 	avr = avr_make_mcu_by_name("atmega328p");
 	if (!avr) {
@@ -251,7 +230,7 @@ int main(int argc, char *argv[])
 
         fclose(fp);
 
-	printf("time stopped at %ldns\n", time_nsec);
+	printf("time stopped at %lluns\n", time_nsec);
 	exit(0);
 
 }
