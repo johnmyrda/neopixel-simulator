@@ -135,7 +135,7 @@ int main(int argc, char *argv[])
     arguments.sim_time_ns = 1000000000;
 
     int opt;
-    while ((opt = getopt(argc, argv, ":n:t:f:")) != -1){
+    while ((opt = getopt(argc, argv, ":n:t:f:h")) != -1){
         switch(opt) {
             case 'n':
                 arguments.sim_time_ns = strtoull(optarg, NULL, 10);
@@ -149,7 +149,10 @@ int main(int argc, char *argv[])
             case ':':
                 fprintf(stderr, "Option -%c requires an operand\n", optopt);
                 usage();
-                break;          
+                break;
+            case 'h':
+                usage();
+                break;
         }
     }
 
@@ -159,6 +162,7 @@ int main(int argc, char *argv[])
 
     if( access(arguments.filename, F_OK) < 0){
         printf("Could not find file %s\n", arguments.filename);
+        usage();
         exit(1);
     }
 
