@@ -1,10 +1,10 @@
+#!/usr/bin/env python3
 import os
 import errno
 import fcntl
 import sys
 import struct
-
-FIFO = "/tmp/neopixel"
+import argparse
 
 class RGBW:
 
@@ -21,16 +21,23 @@ class RGBW:
         return ("RGB: [{},{},{}]".format(self.red, self.green, self.blue))
         # return("RGBW: ({},{},{},{})".format(self.red, self.green, self.blue, self.white))
 
+def parse_args():
+        FIFO = "/tmp/neopixel"
+
+        parser = argparse.ArgumentParser()
+        parser.add_argument("--fifo", help="name of the pipe to use. Default: {}".format(FIFO), default=FIFO)
+        return parser.parse_args()
 
 def main():
+    args = parse_args()
     try:
-        os.mkfifo(FIFO)
+        os.mkfifo(args.fifo)
     except OSError as oe: 
             if oe.errno != errno.EEXIST:
                     raise
     while True:
             length = 0
-            with open(FIFO, 'rb') as f:
+            with open(args.fifo, 'rb') as f:
                 csv = list()
                 time_b = f.read(8)
                 if not time_b:
@@ -55,8 +62,5 @@ def main():
                             #print(pixel)
                 print(",".join(str(x) for x in csv))
    
-
-
-
 if __name__=="__main__":
         main()
