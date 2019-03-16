@@ -7,7 +7,7 @@ function* upToN(n) {
 
 var svgContainer = d3.select("svg")
     .attr("width", 800)
-    .attr("height", 500);
+    .attr("height", 200);
 
 var ledStrip = svgContainer.append("g");
 

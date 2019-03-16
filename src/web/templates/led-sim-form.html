@@ -1,4 +1,9 @@
 <form action="/upload" method="POST" enctype="multipart/form-data">
     <input type="file" name="file">
-    <input type="submit" value="Upload File">
+        <br>
+    <input type="number" name="sim-time-seconds" min="1" max="300" value="10">
+    length of simulation in seconds
+        <br>
+        <br>
+    <input type="submit" value="Run Simulation!">
 </form>
