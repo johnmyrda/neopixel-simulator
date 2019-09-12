@@ -118,13 +118,18 @@ void pixels_done_hook(const rgb_pixel_t * pixels, const uint32_t strip_length, c
 }
 
 struct arg_struct{
-        char *filename;
+        char *file_name;
+        char *pipe_name;
         uint64_t sim_time;
         uint64_t sim_time_ns;
         };
 
 void usage(){
-    fprintf(stderr, "usage: led_sim -t 10 -f firmware.elf\n");
+    fprintf(stdout, "usage: led_sim -t 10 -f firmware.elf\n");
+    fprintf(stdout, "  -t <time in seconds> default: 10\n");
+    fprintf(stdout, "  -n <time in nanoseconds> note: superceded by -t\n");
+    fprintf(stdout, "  -f <file to simulate>\n");
+    fprintf(stdout, "  -p <name of fifo pipe>\n");
     exit(2);
 }
 
@@ -132,27 +137,33 @@ int main(int argc, char *argv[])
 {
     //default arguments
     struct arg_struct arguments;
+    // initialize struct members
+    arguments.sim_time = 0;
     arguments.sim_time_ns = 1000000000;
+    arguments.pipe_name = "/tmp/neopixel";
+    arguments.file_name = "";
 
     int opt;
-    while ((opt = getopt(argc, argv, ":n:t:f:h")) != -1){
+    while ((opt = getopt(argc, argv, ":n:t:f:p:h")) != -1){
         switch(opt) {
-            case 'n':
+            case 'n': // simulation time in nanoseconds
                 arguments.sim_time_ns = strtoull(optarg, NULL, 10);
                 break;
-            case 't':
+            case 't': // simulation time in seconds
                 arguments.sim_time = strtoull(optarg, NULL, 10);
                 break;
-            case 'f':
-                arguments.filename = optarg;
+            case 'f': // filename of file to simulate
+                arguments.file_name = optarg;
+                break;
+            case 'p': // name of pipe to use
+                arguments.pipe_name = optarg;
                 break;
             case ':':
                 fprintf(stderr, "Option -%c requires an operand\n", optopt);
                 usage();
-                break;
             case 'h':
+            default:
                 usage();
-                break;
         }
     }
 
@@ -160,19 +171,19 @@ int main(int argc, char *argv[])
             arguments.sim_time_ns = arguments.sim_time*1000000000;
     }
 
-    if( access(arguments.filename, F_OK) < 0){
-        printf("Could not find file %s\n", arguments.filename);
+    if( access(arguments.file_name, F_OK) < 0){
+        printf("Could not find file %s\n", arguments.file_name);
         usage();
         exit(1);
     }
 
     elf_firmware_t f;
-	elf_read_firmware(arguments.filename, &f);
+	elf_read_firmware(arguments.file_name, &f);
 
 	f.frequency = 16000000;
-	strncat(f.mmcu, arguments.filename, sizeof(f.mmcu)-1);
-	printf("firmware %s f=%d mmcu=%s\n", arguments.filename, (int)f.frequency, f.mmcu);
-    printf("sim_time=%llu sim_time_ns=%llu\n", arguments.sim_time, arguments.sim_time_ns);
+	strncat(f.mmcu, arguments.file_name, sizeof(f.mmcu)-1);
+	printf("firmware %s f=%d mmcu=%s\n", arguments.file_name, (int)f.frequency, f.mmcu);
+        printf("sim_time=%llu sim_time_ns=%llu\n", arguments.sim_time, arguments.sim_time_ns);
 
 	avr = avr_make_mcu_by_name("atmega328p");
 	if (!avr) {
@@ -181,8 +192,6 @@ int main(int argc, char *argv[])
 	}
 	avr_init(avr);
 	avr_load_firmware(avr, &f);
-
-	
 
 	// initialize our 'peripheral'
 	button_init(avr, &button, "button");
@@ -207,21 +216,19 @@ int main(int argc, char *argv[])
 	avr_raise_irq(button.irq + IRQ_BUTTON_OUT, 1);
 
 	// create a named pipe
-
-        char pipe_name[] = "/tmp/neopixel";
-        int remove_error = remove(pipe_name);
-        if(remove_error < 0){
-                printf("can't remove %s ", pipe_name);
+        int remove_error = remove(arguments.pipe_name);
+        if(remove_error != 0){
+                printf("can't remove %s\n", arguments.pipe_name);
                 perror("error:");
                 }
-        int mkfifo_error = mkfifo(pipe_name, 0666);
-        if(mkfifo_error < 0){
+        int mkfifo_error = mkfifo(arguments.pipe_name, 0666);
+        if(mkfifo_error != 0){
                 perror("mkfifo failed");
                 }
-        fp = fopen(pipe_name, "w");
+        printf("using named pipe: %s\n", arguments.pipe_name);
+        fp = fopen(arguments.pipe_name, "w");
         
         // the AVR run on it's own thread. it even allows for debugging!
-
 	pthread_t run;
 	pthread_create(&run, NULL, avr_run_thread, NULL);
 
