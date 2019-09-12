@@ -32,40 +32,39 @@ def parse_args():
     return parser.parse_args()
 
 
-def main():
-    args = parse_args()
+def read_from_pipe(pipe_name):
     try:
-        os.mkfifo(args.fifo)
+        os.mkfifo(pipe_name)
     except OSError as oe:
         if oe.errno != errno.EEXIST:
             raise
     while True:
         length = 0
-        with open(args.fifo, 'rb') as f:
+        with open(pipe_name, 'rb') as f:
             csv = list()
+            # binary format:
+            # timestamp (uint64_t)
+            # led strip length (uint32_t)
+            # RGB data (rgb_pixel_t == 3*uint8_t)*length
             time_b = f.read(8)
             if not time_b:
                 break
             time = struct.unpack('L', time_b)[0]
-            #print("time: {}s ({}ns)".format(time/1000000000, time))
             csv.append(time)
             length_b = f.read(4)
             if not length_b:
                 break
             length = struct.unpack('I', length_b)[0]
-            #print("strip length {}".format(length))
             csv.append(length)
             if length > 0:
                 pixels_b = f.read(length*3)
-                # print(pixels_b)
                 for i in range(length):
-                    #pixel_tuple = struct.unpack("BBB", pixels_b[i*3:i*3+3])
+                    # read bytes in groups of 3 so that each represents a pixel in the csv
                     hex_bytes = pixels_b[i*3:i*3+3].hex()
                     csv.append(hex_bytes)
-                    #pixel = RGBW(*pixel_tuple)
-                    # print(pixel)
             print(",".join(str(x) for x in csv))
 
 
 if __name__ == "__main__":
-    main()
+    args = parse_args()
+    read_from_pipe(args.fifo)
