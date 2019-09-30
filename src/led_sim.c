@@ -1,6 +1,5 @@
 #include <errno.h>
 #include <libgen.h>
-#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,19 +17,9 @@
 #include "ws2812.h"
 
 ws2812_t led_strip;
-pthread_mutex_t avr_mutex;
 avr_t *avr = NULL;
 
 FILE *fp; // file descriptor for named pipe
-
-static void *avr_run_thread(void *oaram) {
-  while (1) {
-    pthread_mutex_lock(&avr_mutex);
-    avr_run(avr);
-    pthread_mutex_unlock(&avr_mutex);
-  }
-  return NULL;
-}
 
 // debug function to print truecolor rgb in terminal
 void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
@@ -176,14 +165,11 @@ int main(int argc, char *argv[]) {
   fp = fopen(arguments.pipe_name, "w");
 
   // the AVR run on it's own thread. it even allows for debugging!
-  pthread_t run;
-  pthread_create(&run, NULL, avr_run_thread, NULL);
 
   uint64_t time_nsec = 0;
   while (time_nsec < arguments.sim_time_ns) {
-    pthread_mutex_lock(&avr_mutex);
+    avr_run(avr);
     time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
-    pthread_mutex_unlock(&avr_mutex);
   }
 
   fclose(fp);
