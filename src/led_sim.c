@@ -37,46 +37,20 @@
 #include "sim_gdb.h"
 
 #include "ws2812.h"
-#include "button.h"
 
-button_t button;
 ws2812_t led_strip;
-int do_button_press = 0;
 pthread_mutex_t avr_mutex;
 avr_t * avr = NULL;
 uint8_t	pin_state = 0;	// current port B
 
 FILE * fp;//file descriptor for named pipe
 
-void keyCB(unsigned char key, int x, int y)	/* called on key press */
-{
-	if (key == 'q')
-		exit(0);
-	//static uint8_t buf[64];
-	switch (key) {
-		case 'q':
-		case 0x1f: // escape
-			exit(0);
-			break;
-		case ' ':
-			do_button_press++; // pass the message to the AVR thread
-			break;
-	}
-}
-
 static void * avr_run_thread(void * oaram)
-{
-	int b_press = do_button_press;
-	
+{	
 	while (1) {
 		pthread_mutex_lock(&avr_mutex);
 		avr_run(avr);
 		pthread_mutex_unlock(&avr_mutex);
-		if (do_button_press != b_press) {
-			b_press = do_button_press;
-			printf("Button pressed\n");
-			button_press(&button, 1000000);
-		}
 	}
 	return NULL;
 }
@@ -200,14 +174,9 @@ int main(int argc, char *argv[])
 	avr_load_firmware(avr, &f);
 
 	// initialize our 'peripheral'
-	button_init(avr, &button, "button");
         uint32_t NUM_LEDS = 32;
 	rgb_pixel_t pixels[NUM_LEDS];
         ws2812_init(avr, &led_strip, pixels, NUM_LEDS, pixels_done_hook);
-        // "connect" the output irw of the button to the port pin of the AVR
-	avr_connect_irq(
-		button.irq + IRQ_BUTTON_OUT,
-		avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('C'), 0));
 
         avr_connect_irq(avr_io_getirq(avr,AVR_IOCTL_IOPORT_GETIRQ('B'), IOPORT_IRQ_PIN3), led_strip.irq);
 
@@ -217,9 +186,6 @@ int main(int argc, char *argv[])
 		//avr->state = cpu_Stopped;
 		avr_gdb_init(avr);
 	}
-
-	// 'raise' it, it's a "pullup"
-	avr_raise_irq(button.irq + IRQ_BUTTON_OUT, 1);
 
 	// create a named pipe
         int remove_error = remove(arguments.pipe_name);
