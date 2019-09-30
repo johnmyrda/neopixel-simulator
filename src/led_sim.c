@@ -133,9 +133,8 @@ void usage(){
     exit(2);
 }
 
-int main(int argc, char *argv[])
-{
-    //default arguments
+struct arg_struct parse_args(int argc, char *argv[]){
+   //default arguments
     struct arg_struct arguments;
     // initialize struct members
     arguments.sim_time = 0;
@@ -177,12 +176,19 @@ int main(int argc, char *argv[])
         exit(1);
     }
 
-    elf_firmware_t f;
-	elf_read_firmware(arguments.file_name, &f);
+    return arguments;
+}
 
-	f.frequency = 16000000;
-	strncat(f.mmcu, arguments.file_name, sizeof(f.mmcu)-1);
-	printf("firmware %s f=%d mmcu=%s\n", arguments.file_name, (int)f.frequency, f.mmcu);
+int main(int argc, char *argv[])
+{
+        struct arg_struct arguments = parse_args(argc, argv);
+
+        elf_firmware_t f;
+        elf_read_firmware(arguments.file_name, &f);
+
+        f.frequency = 16000000;
+        strncat(f.mmcu, arguments.file_name, sizeof(f.mmcu)-1);
+        printf("firmware %s f=%d mmcu=%s\n", arguments.file_name, (int)f.frequency, f.mmcu);
         printf("sim_time=%llu sim_time_ns=%llu\n", arguments.sim_time, arguments.sim_time_ns);
 
 	avr = avr_make_mcu_by_name("atmega328p");
@@ -240,8 +246,8 @@ int main(int argc, char *argv[])
 	}
 
         fclose(fp);
-
-	printf("time stopped at %lluns\n", time_nsec);
-	exit(0);
+        
+        printf("time stopped at %lluns\n", time_nsec);
+        exit(0);
 
 }
