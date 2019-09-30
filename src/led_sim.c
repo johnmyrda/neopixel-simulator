@@ -17,7 +17,6 @@
 #include "ws2812.h"
 
 ws2812_t led_strip;
-avr_t *avr = NULL;
 
 FILE *fp; // file descriptor for named pipe
 
@@ -62,7 +61,6 @@ void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,
 struct arg_struct {
   char *file_name;
   char *pipe_name;
-  uint64_t sim_time;
   uint64_t sim_time_ns;
 };
 
@@ -79,7 +77,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   // default arguments
   struct arg_struct arguments;
   // initialize struct members
-  arguments.sim_time = 0;
+  int sim_time = 0;
   arguments.sim_time_ns = 1000000000;
   arguments.pipe_name = "/tmp/neopixel";
   arguments.file_name = "";
@@ -91,7 +89,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
       arguments.sim_time_ns = strtoull(optarg, NULL, 10);
       break;
     case 't': // simulation time in seconds
-      arguments.sim_time = strtoull(optarg, NULL, 10);
+      sim_time = strtoull(optarg, NULL, 10);
       break;
     case 'f': // filename of file to simulate
       arguments.file_name = optarg;
@@ -108,8 +106,8 @@ struct arg_struct parse_args(int argc, char *argv[]) {
     }
   }
 
-  if (arguments.sim_time != 0) {
-    arguments.sim_time_ns = arguments.sim_time * 1000000000;
+  if (sim_time != 0) {
+    arguments.sim_time_ns = sim_time * 1000000000;
   }
 
   if (access(arguments.file_name, F_OK) < 0) {
@@ -131,10 +129,9 @@ int main(int argc, char *argv[]) {
   strncat(f.mmcu, arguments.file_name, sizeof(f.mmcu) - 1);
   printf("firmware %s f=%d mmcu=%s\n", arguments.file_name, (int)f.frequency,
          f.mmcu);
-  printf("sim_time=%llu sim_time_ns=%llu\n", arguments.sim_time,
-         arguments.sim_time_ns);
+  printf("sim_time_ns=%llu\n", arguments.sim_time_ns);
 
-  avr = avr_make_mcu_by_name("atmega328p");
+  avr_t *avr = avr_make_mcu_by_name("atmega328p");
   if (!avr) {
     fprintf(stderr, "%s: AVR '%s' not known\n", argv[0], f.mmcu);
     exit(1);
@@ -163,8 +160,6 @@ int main(int argc, char *argv[]) {
   }
   printf("using named pipe: %s\n", arguments.pipe_name);
   fp = fopen(arguments.pipe_name, "w");
-
-  // the AVR run on it's own thread. it even allows for debugging!
 
   uint64_t time_nsec = 0;
   while (time_nsec < arguments.sim_time_ns) {
