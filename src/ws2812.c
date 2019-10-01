@@ -8,23 +8,23 @@ const timing_t T1H = {550, 5500};
 const timing_t TLD = {300, 5000};
 const timing_t TLL = {6000, UINT16_MAX};
 
-void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
-    ws2812_t *led_metadata = (ws2812_t *) param;
-    uint64_t time_nsec = avr_cycles_to_nsec(led_metadata->avr, led_metadata->avr->cycle);
-//    printf("Pin state: %d\n", value);
-    ws2812_run(time_nsec, value, led_metadata);
-}
+// void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
+//     ws2812_t *led_metadata = (ws2812_t *) param;
+// //    uint64_t time_nsec = avr_cycles_to_nsec(led_metadata->avr, led_metadata->avr->cycle);
+// //    printf("Pin state: %d\n", value);
+//     ws2812_run(time_nsec, value, led_metadata);
+// }
 
-void ws2812_init(struct avr_t * avr, ws2812_t * led_metadata, rgb_pixel_t * pixels, uint32_t strip_length, latch_callback_t cb){
+void ws2812_init(ws2812_t * led_metadata, rgb_pixel_t * pixels, uint32_t strip_length, latch_callback_t cb){
     *led_metadata = (struct ws2812_t) {0};
 
-    led_metadata->avr = avr;
-    led_metadata->irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
+    //led_metadata->avr = avr;
+    // led_metadata->irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
     memset(pixels, 0, sizeof(rgb_pixel_t)*strip_length);
     led_metadata->pixels = pixels;
     led_metadata->strip_length = strip_length;
     led_metadata->latch_callback = cb;
-    avr_irq_register_notify(led_metadata->irq, ws2812_pin_changed_hook, led_metadata);
+    //avr_irq_register_notify(led_metadata->irq, ws2812_pin_changed_hook, led_metadata);
 }
 
 _Bool ws2812_high(uint64_t time){

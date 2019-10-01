@@ -14,11 +14,13 @@
 #include "sim_elf.h"
 #include "sim_gdb.h"
 
+#include "sim_irq.h"
 #include "ws2812.h"
 
 ws2812_t led_strip;
 
 FILE *fp; // file descriptor for named pipe
+avr_t *avr = NULL;
 
 // debug function to print truecolor rgb in terminal
 void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
@@ -43,6 +45,11 @@ void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
     }
   }
   printf("\n");
+}
+
+void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
+    uint64_t time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
+    ws2812_run(time_nsec, value, param);
 }
 
 void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,
@@ -75,9 +82,9 @@ void usage() {
 
 struct arg_struct parse_args(int argc, char *argv[]) {
   // default arguments
-  struct arg_struct arguments;
+  struct arg_struct arguments = {0};
   // initialize struct members
-  int sim_time = 0;
+  uint64_t sim_time = 0;
   arguments.sim_time_ns = 1000000000;
   arguments.pipe_name = "/tmp/neopixel";
   arguments.file_name = "";
@@ -131,7 +138,7 @@ int main(int argc, char *argv[]) {
          f.mmcu);
   printf("sim_time_ns=%llu\n", arguments.sim_time_ns);
 
-  avr_t *avr = avr_make_mcu_by_name("atmega328p");
+  avr = avr_make_mcu_by_name("atmega328p");
   if (!avr) {
     fprintf(stderr, "%s: AVR '%s' not known\n", argv[0], f.mmcu);
     exit(1);
@@ -142,11 +149,14 @@ int main(int argc, char *argv[]) {
   // initialize our peripheral
   uint32_t NUM_LEDS = 32;
   rgb_pixel_t pixels[NUM_LEDS];
-  ws2812_init(avr, &led_strip, pixels, NUM_LEDS, pixels_done_hook);
+
+  avr_irq_t *led_strip_irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
+  avr_irq_register_notify(led_strip_irq, ws2812_pin_changed_hook, &led_strip);
+  ws2812_init(&led_strip, pixels, NUM_LEDS, pixels_done_hook);
 
   avr_connect_irq(
       avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('B'), IOPORT_IRQ_PIN3),
-      led_strip.irq);
+      led_strip_irq);
 
   // create a named pipe
   int remove_error = remove(arguments.pipe_name);
