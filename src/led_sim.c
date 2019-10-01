@@ -73,7 +73,7 @@ struct arg_struct {
 
 void usage() {
   fprintf(stdout, "usage: led_sim -t 10 -f firmware.elf\n");
-  fprintf(stdout, "  -t <time in seconds> default: 10\n");
+  fprintf(stdout, "  -t <time in seconds> default: 5\n");
   fprintf(stdout, "  -n <time in nanoseconds> note: superceded by -t\n");
   fprintf(stdout, "  -f <file to simulate>\n");
   fprintf(stdout, "  -p <name of fifo pipe>\n");
@@ -85,7 +85,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   struct arg_struct arguments = {0};
   // initialize struct members
   uint64_t sim_time = 0;
-  arguments.sim_time_ns = 1000000000;
+  arguments.sim_time_ns = 5000000000;
   arguments.pipe_name = "/tmp/neopixel";
   arguments.file_name = "";
 
