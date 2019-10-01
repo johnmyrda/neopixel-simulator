@@ -17,8 +17,6 @@
 #include "sim_irq.h"
 #include "ws2812.h"
 
-//ws2812_t led_strip;
-
 FILE *fp; // file descriptor for named pipe
 avr_t *avr = NULL;
 
@@ -148,7 +146,6 @@ int main(int argc, char *argv[]) {
 
   // initialize our peripheral
   uint32_t NUM_LEDS = 32;
-  //rgb_pixel_t pixels[NUM_LEDS];
 
   avr_irq_t *led_strip_irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
   LedStrip *led_strip = ws2812_init(NUM_LEDS, pixels_done_hook);

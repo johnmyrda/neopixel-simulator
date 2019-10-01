@@ -30,6 +30,7 @@ LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb){
     LedStrip * strip = malloc(sizeof(LedStrip));
     rgb_pixel_t * pixels = malloc(sizeof(rgb_pixel_t) * strip_length);
 
+    memset(strip, 0, sizeof(LedStrip));
     memset(pixels, 0, sizeof(rgb_pixel_t)*strip_length);
     strip->pixels = pixels;
     strip->strip_length = strip_length;
