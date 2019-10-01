@@ -1,6 +1,12 @@
 #include "ws2812.h"
 #include <stdlib.h>
 
+typedef struct timing_t
+{
+    uint16_t low;
+    uint16_t high;
+} timing_t;
+
 //timing info in ns
 //https://wp.josh.com/2014/05/13/ws2812-neopixels-are-not-so-finicky-once-you-get-to-know-them/
 const timing_t T0H = {200, 500};
@@ -8,21 +14,36 @@ const timing_t T1H = {550, 5500};
 const timing_t TLD = {300, 5000};
 const timing_t TLL = {6000, UINT16_MAX};
 
-void ws2812_init(ws2812_t * led_metadata, rgb_pixel_t * pixels, uint32_t strip_length, latch_callback_t cb){
-    *led_metadata = (struct ws2812_t) {0};
+typedef struct ws2812_t
+{
+    uint64_t last_pin_change_time;
+    latch_callback_t latch_callback;
+    rgb_pixel_t * pixels;
+    uint32_t strip_length;
+    uint8_t cur_bit;
+    uint8_t cur_bit_index;
+    uint8_t cur_byte;
+    uint8_t cur_byte_index;
+} ws2812_t;
+
+LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb){
+    LedStrip * strip = malloc(sizeof(LedStrip));
+    rgb_pixel_t * pixels = malloc(sizeof(rgb_pixel_t) * strip_length);
 
     memset(pixels, 0, sizeof(rgb_pixel_t)*strip_length);
-    led_metadata->pixels = pixels;
-    led_metadata->strip_length = strip_length;
-    led_metadata->latch_callback = cb;
+    strip->pixels = pixels;
+    strip->strip_length = strip_length;
+    strip->latch_callback = cb;
+
+    return strip;
 }
 
 _Bool ws2812_high(uint64_t time){
 	if(T0H.low < time && time < T0H.high){
-                return 0;
+        return 0;
 	} else 
 	if (T1H.low < time && time < T1H.high){
-                return 1;
+        return 1;
 	} else {
 		return 1;
 	}
@@ -67,4 +88,9 @@ void ws2812_run(uint64_t time, uint32_t value, ws2812_t * led_metadata){
         ws2812_low(diff, led_metadata);
     }
 //    printf("diff: %ld time: %ld ns\n", diff, time);
+}
+
+void ws2812_destroy(LedStrip *led_strip){
+    free(led_strip->pixels);
+    free(led_strip);
 }

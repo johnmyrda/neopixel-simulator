@@ -14,30 +14,16 @@ typedef struct rgb_pixel_t {
 
 typedef void (* latch_callback_t)(const rgb_pixel_t * pixels, const uint32_t strip_length, const uint64_t time_in_ns);
 
-typedef struct ws2812_t
-{
-    uint64_t last_pin_change_time;
-    latch_callback_t latch_callback;
-    rgb_pixel_t * pixels;
-    uint32_t strip_length;
-    uint8_t cur_bit;
-    uint8_t cur_bit_index;
-    uint8_t cur_byte;
-    uint8_t cur_byte_index;
-} ws2812_t;
+typedef struct ws2812_t LedStrip;
 
-typedef struct timing_t
-{
-    uint16_t low;
-    uint16_t high;
-} timing_t;
+LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb);
 
-void ws2812_init(ws2812_t * led_metadata, rgb_pixel_t * pixels, uint32_t strip_length, latch_callback_t cb);
+void ws2812_run(uint64_t time, uint32_t value, LedStrip *led_strip);
 
-void ws2812_run(uint64_t time, uint32_t value, ws2812_t * led_metadata);
-
-void ws2812_low(uint64_t time, ws2812_t * led_metadata);
+void ws2812_low(uint64_t time, LedStrip *led_strip);
 
 _Bool ws2812_high(uint64_t time);
+
+void ws2812_destroy(LedStrip *led_strip);
 
 #endif 
