@@ -19,6 +19,7 @@
 
 FILE *fp; // file descriptor for named pipe
 avr_t *avr = NULL;
+#define NANOSECONDS_PER_SECOND 1000000000
 
 // debug function to print truecolor rgb in terminal
 void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
@@ -63,6 +64,13 @@ void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,
   fflush(fp);
 }
 
+// converts a number of usec to a number of machine cycles, at current speed
+static inline avr_cycle_count_t
+avr_nsec_to_cycles(struct avr_t * avr, uint64_t nsec)
+{
+	return avr->frequency * (avr_cycle_count_t)nsec / NANOSECONDS_PER_SECOND;
+}
+
 struct arg_struct {
   char *file_name;
   char *pipe_name;
@@ -83,7 +91,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   struct arg_struct arguments = {0};
   // initialize struct members
   uint64_t sim_time = 0;
-  arguments.sim_time_ns = 5000000000;
+  arguments.sim_time_ns = NANOSECONDS_PER_SECOND * (uint64_t) 5;
   arguments.pipe_name = "/tmp/neopixel";
   arguments.file_name = "";
 
@@ -112,7 +120,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   }
 
   if (sim_time != 0) {
-    arguments.sim_time_ns = sim_time * 1000000000;
+    arguments.sim_time_ns = sim_time * NANOSECONDS_PER_SECOND;
   }
 
   if (access(arguments.file_name, F_OK) < 0) {
@@ -169,15 +177,15 @@ int main(int argc, char *argv[]) {
   printf("using named pipe: %s\n", arguments.pipe_name);
   fp = fopen(arguments.pipe_name, "w");
 
-  uint64_t time_nsec = 0;
-  while (time_nsec < arguments.sim_time_ns) {
+  avr_cycle_count_t end_cycle = avr_nsec_to_cycles(avr, arguments.sim_time_ns);
+  while (avr->cycle < end_cycle) {
     avr_run(avr);
-    time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
   }
 
   fclose(fp);
   ws2812_destroy(led_strip);
 
-  printf("time stopped at %lluns\n", time_nsec);
+  printf("end_cycle: %llu\n", (uint64_t) avr->cycle);
+  printf("time stopped at %lluns\n", avr_cycles_to_nsec(avr, avr->cycle));
   exit(0);
 }
