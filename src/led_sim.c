@@ -47,7 +47,7 @@ void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
 
 void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
     uint64_t time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
-    ws2812_run(time_nsec, value, param);
+    ws2812_run(param, time_nsec, value);
 }
 
 void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,

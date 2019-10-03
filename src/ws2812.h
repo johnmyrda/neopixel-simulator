@@ -18,12 +18,12 @@ typedef struct ws2812_t LedStrip;
 
 LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb);
 
-void ws2812_run(uint64_t time, uint32_t value, LedStrip *led_strip);
+void ws2812_run(LedStrip * const led_strip, uint64_t time, uint32_t value);
 
 // void ws2812_low(uint64_t time, LedStrip *led_strip);
 
 // _Bool ws2812_high(uint64_t time);
 
-void ws2812_destroy(LedStrip *led_strip);
+void ws2812_destroy(LedStrip * const led_strip);
 
 #endif 

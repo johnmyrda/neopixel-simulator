@@ -50,7 +50,7 @@ _Bool ws2812_high(uint64_t time){
 	}
 }
 
-void ws2812_low(uint64_t time, ws2812_t * led_metadata){
+void ws2812_low(LedStrip * const led_metadata, uint64_t time){
     if(TLD.low < time && time < TLD.high){
         //set bit using bitmask
         led_metadata->cur_byte = (led_metadata->cur_bit << (7 - led_metadata->cur_bit_index)) | led_metadata->cur_byte;
@@ -79,19 +79,19 @@ void ws2812_low(uint64_t time, ws2812_t * led_metadata){
 }
 
 
-void ws2812_run(uint64_t time, uint32_t value, ws2812_t * led_metadata){
+void ws2812_run(LedStrip * const led_metadata, uint64_t time, uint32_t value){
     uint64_t diff = time - led_metadata->last_pin_change_time;
     led_metadata->last_pin_change_time = time;
     if(value == 0){
         led_metadata->cur_bit = ws2812_high(diff);
     } else 
     if(value == 1){
-        ws2812_low(diff, led_metadata);
+        ws2812_low(led_metadata, diff);
     }
 //    printf("diff: %ld time: %ld ns\n", diff, time);
 }
 
-void ws2812_destroy(LedStrip *led_strip){
+void ws2812_destroy(LedStrip * const led_strip){
     free(led_strip->pixels);
     free(led_strip);
 }
