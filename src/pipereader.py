@@ -38,9 +38,9 @@ def read_from_pipe(pipe_name):
     except OSError as oe:
         if oe.errno != errno.EEXIST:
             raise
-    while True:
-        length = 0
-        with open(pipe_name, 'rb') as f:
+    with open(pipe_name, 'rb') as f:
+        while True:
+            length = 0
             csv = list()
             # binary format:
             # timestamp (uint64_t)
