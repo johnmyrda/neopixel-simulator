@@ -19,6 +19,8 @@
 
 FILE *fp; // file descriptor for named pipe
 avr_t *avr = NULL;
+
+_Bool print_percentage_flag = 0;
 #define NANOSECONDS_PER_SECOND 1000000000
 
 // debug function to print truecolor rgb in terminal
@@ -62,6 +64,16 @@ void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,
     printf("write error!");
   }
   fflush(fp);
+}
+
+void percentage_signal_handler(){
+  print_percentage_flag = 1;
+}
+
+void print_percentage(avr_cycle_count_t current_cycle, avr_cycle_count_t end_cycle){
+      printf("%.2f%% cycle=%llu\n", 100.0 * current_cycle / end_cycle, current_cycle);
+      print_percentage_flag = 0;
+      alarm(1);
 }
 
 // converts a number of usec to a number of machine cycles, at current speed
@@ -178,9 +190,15 @@ int main(int argc, char *argv[]) {
   fp = fopen(arguments.pipe_name, "w");
 
   avr_cycle_count_t end_cycle = avr_nsec_to_cycles(avr, arguments.sim_time_ns);
-  while (avr->cycle < end_cycle) {
+  signal(SIGALRM, percentage_signal_handler);
+  alarm(1);
+  while (avr->cycle <= end_cycle) {
     avr_run(avr);
+    if(print_percentage_flag){
+      print_percentage(avr->cycle, end_cycle);
+    }
   }
+  print_percentage(avr->cycle, end_cycle);
 
   fclose(fp);
   ws2812_destroy(led_strip);
