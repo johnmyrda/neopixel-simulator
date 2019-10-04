@@ -76,11 +76,19 @@ void print_percentage(avr_cycle_count_t current_cycle, avr_cycle_count_t end_cyc
       alarm(1);
 }
 
-// converts a number of usec to a number of machine cycles, at current speed
+// converts a number of nsec to a number of machine cycles, at current speed
 static inline avr_cycle_count_t
 avr_nsec_to_cycles(struct avr_t * avr, uint64_t nsec)
 {
 	return avr->frequency * (avr_cycle_count_t)nsec / NANOSECONDS_PER_SECOND;
+}
+
+void remove_fifo(const char * fifo_name){
+  int remove_error = remove(fifo_name);
+  if (remove_error != 0) {
+    printf("can't remove %s\n", fifo_name);
+    perror("error:");
+  }
 }
 
 struct arg_struct {
@@ -177,11 +185,6 @@ int main(int argc, char *argv[]) {
       led_strip_irq);
 
   // create a named pipe
-  int remove_error = remove(arguments.pipe_name);
-  if (remove_error != 0) {
-    printf("can't remove %s\n", arguments.pipe_name);
-    perror("error:");
-  }
   int mkfifo_error = mkfifo(arguments.pipe_name, 0666);
   if (mkfifo_error != 0) {
     perror("mkfifo failed");
@@ -202,8 +205,8 @@ int main(int argc, char *argv[]) {
 
   fclose(fp);
   ws2812_destroy(led_strip);
+  remove_fifo(arguments.pipe_name);
 
-  printf("end_cycle: %llu\n", (uint64_t) avr->cycle);
   printf("time stopped at %lluns\n", avr_cycles_to_nsec(avr, avr->cycle));
   exit(0);
 }
