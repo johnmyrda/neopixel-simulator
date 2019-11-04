@@ -1,3 +1,6 @@
 [submodule "lib/simavr"]
 	path = lib/simavr
 	url = git@github.com:buserror/simavr.git
+[submodule "lib/sds"]
+	path = lib/sds
+	url = git@github.com:antirez/sds.git
