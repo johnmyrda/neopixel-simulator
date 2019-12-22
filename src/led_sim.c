@@ -9,12 +9,17 @@
 #include <sys/types.h>
 #include <unistd.h>
 
+// simavr
 #include "avr_ioport.h"
 #include "sim_avr.h"
 #include "sim_elf.h"
 #include "sim_gdb.h"
-
 #include "sim_irq.h"
+
+// string handling library
+#include "sds.h"
+
+// led strip emulation
 #include "ws2812.h"
 
 FILE *fp; // file descriptor for named pipe
@@ -50,10 +55,31 @@ void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
 
 void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
     uint64_t time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
-    ws2812_run(param, time_nsec, value);
+    ws2812_run((LedStrip *)param, time_nsec, value);
 }
 
-void pixels_done_hook(const rgb_pixel_t *pixels, const uint32_t strip_length,
+void pixels_done_hook_csv(const rgb_pixel_t *pixels, const uint32_t strip_length,
+                      const uint64_t time_in_ns) {
+  uint8_t header_offset = 2;
+  sds csv_line[header_offset + strip_length];
+  csv_line[0] = sdsfromlonglong(time_in_ns);
+  csv_line[1] = sdsfromlonglong(strip_length);
+
+  for(int i = 0; i < strip_length; i++){
+    rgb_pixel_t current_pixel = pixels[i];
+    sds color_hex[3];
+    color_hex[0] = sdsfromlonglong(current_pixel.red);
+    color_hex[1] = sdsfromlonglong(current_pixel.blue);
+    color_hex[2] = sdsfromlonglong(current_pixel.green);
+
+    csv_line[i + 2] = sdsjoinsds(color_hex, 3, "", 0);
+  }
+
+  sds full_line = sdsjoinsds(csv_line, header_offset + strip_length, ",", 1);
+  printf("%s\n", full_line);
+}
+
+void pixels_done_hook_binary(const rgb_pixel_t *pixels, const uint32_t strip_length,
                       const uint64_t time_in_ns) {
   // printf("time: %ldns\n", time_in_ns);
   // pixels_to_truecolor(pixels, strip_length);
@@ -176,7 +202,7 @@ int main(int argc, char *argv[]) {
   uint32_t NUM_LEDS = 32;
 
   avr_irq_t *led_strip_irq = avr_alloc_irq(&avr->irq_pool, 0, 1, NULL);
-  LedStrip *led_strip = ws2812_init(NUM_LEDS, pixels_done_hook);
+  LedStrip *led_strip = ws2812_init(NUM_LEDS, pixels_done_hook_csv);
 
   avr_irq_register_notify(led_strip_irq, ws2812_pin_changed_hook, led_strip);
 
@@ -189,8 +215,8 @@ int main(int argc, char *argv[]) {
   if (mkfifo_error != 0) {
     perror("mkfifo failed");
   }
-  printf("using named pipe: %s\n", arguments.pipe_name);
-  fp = fopen(arguments.pipe_name, "w");
+  // printf("using named pipe: %s\n", arguments.pipe_name);
+  // fp = fopen(arguments.pipe_name, "w");
 
   avr_cycle_count_t end_cycle = avr_nsec_to_cycles(avr, arguments.sim_time_ns);
   signal(SIGALRM, percentage_signal_handler);
