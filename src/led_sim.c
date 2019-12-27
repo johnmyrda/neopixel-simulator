@@ -2,6 +2,7 @@
 #include <libgen.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <stdbool.h>
 #include <string.h>
 
 #include <fcntl.h>
@@ -22,10 +23,10 @@
 // led strip emulation
 #include "ws2812.h"
 
-FILE *fp; // file descriptor for named pipe
+FILE *fp; // file descriptor for output file or named pipe
 avr_t *avr = NULL;
 
-_Bool print_percentage_flag = 0;
+bool print_percentage_flag = false;
 #define NANOSECONDS_PER_SECOND 1000000000
 
 // debug function to print truecolor rgb in terminal
@@ -61,22 +62,26 @@ void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param
 void pixels_done_hook_csv(const rgb_pixel_t *pixels, const uint32_t strip_length,
                       const uint64_t time_in_ns) {
   uint8_t header_offset = 2;
-  sds csv_line[header_offset + strip_length];
+  sds * csv_line = malloc(sizeof(void *) *(header_offset + strip_length));
   csv_line[0] = sdsfromlonglong(time_in_ns);
   csv_line[1] = sdsfromlonglong(strip_length);
 
   for(int i = 0; i < strip_length; i++){
     rgb_pixel_t current_pixel = pixels[i];
-    sds color_hex[3];
+    sds * color_hex = malloc(sizeof(void *)*3);
     color_hex[0] = sdsfromlonglong(current_pixel.red);
     color_hex[1] = sdsfromlonglong(current_pixel.blue);
     color_hex[2] = sdsfromlonglong(current_pixel.green);
 
     csv_line[i + 2] = sdsjoinsds(color_hex, 3, "", 0);
+    sdsfreesplitres(color_hex, 3);
   }
 
   sds full_line = sdsjoinsds(csv_line, header_offset + strip_length, ",", 1);
-  printf("%s\n", full_line);
+  full_line = sdscat(full_line, "\n");
+  fwrite(full_line, sizeof(char), sdslen(full_line), fp);
+  sdsfree(full_line);
+  sdsfreesplitres(csv_line, header_offset + strip_length);
 }
 
 void pixels_done_hook_binary(const rgb_pixel_t *pixels, const uint32_t strip_length,
@@ -117,9 +122,20 @@ void remove_fifo(const char * fifo_name){
   }
 }
 
+void create_fifo(const char * fifo_name){
+  // create a named pipe
+  int mkfifo_error = mkfifo(fifo_name, 0666);
+  if (mkfifo_error != 0) {
+    perror("mkfifo failed");
+  }
+  printf("using named pipe: %s\n", fifo_name);
+  fp = fopen(fifo_name, "w");
+}
+
 struct arg_struct {
-  char *file_name;
-  char *pipe_name;
+  char *input_name;
+  char *output_name;
+  bool use_pipe;
   uint64_t sim_time_ns;
 };
 
@@ -128,7 +144,8 @@ void usage() {
   fprintf(stdout, "  -t <time in seconds> default: 5\n");
   fprintf(stdout, "  -n <time in nanoseconds> note: superceded by -t\n");
   fprintf(stdout, "  -f <file to simulate>\n");
-  fprintf(stdout, "  -p <name of fifo pipe>\n");
+  fprintf(stdout, "  -o <output file>\n");
+  fprintf(stdout, "  -p output to fifo instead of file. uses file from -o\n");
   exit(2);
 }
 
@@ -138,8 +155,9 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   // initialize struct members
   uint64_t sim_time = 0;
   arguments.sim_time_ns = NANOSECONDS_PER_SECOND * (uint64_t) 5;
-  arguments.pipe_name = "/tmp/neopixel";
-  arguments.file_name = "";
+  arguments.use_pipe = false;
+  arguments.input_name = "";
+  arguments.output_name = "led_out.csv";
 
   int opt;
   while ((opt = getopt(argc, argv, ":n:t:f:p:h")) != -1) {
@@ -151,10 +169,13 @@ struct arg_struct parse_args(int argc, char *argv[]) {
       sim_time = strtoull(optarg, NULL, 10);
       break;
     case 'f': // filename of file to simulate
-      arguments.file_name = optarg;
+      arguments.input_name = optarg;
       break;
-    case 'p': // name of pipe to use
-      arguments.pipe_name = optarg;
+    case 'o': // name of file to use for output
+      arguments.output_name = optarg;
+      break;
+    case 'p': // whether to use pipe
+      arguments.use_pipe = true;
       break;
     case ':':
       fprintf(stderr, "Option -%c requires an operand\n", optopt);
@@ -169,8 +190,8 @@ struct arg_struct parse_args(int argc, char *argv[]) {
     arguments.sim_time_ns = sim_time * NANOSECONDS_PER_SECOND;
   }
 
-  if (access(arguments.file_name, F_OK) < 0) {
-    printf("Could not find file %s\n", arguments.file_name);
+  if (access(arguments.input_name, F_OK) < 0) {
+    printf("Could not find file %s\n", arguments.input_name);
     usage();
     exit(1);
   }
@@ -182,11 +203,11 @@ int main(int argc, char *argv[]) {
   struct arg_struct arguments = parse_args(argc, argv);
 
   elf_firmware_t f;
-  elf_read_firmware(arguments.file_name, &f);
+  elf_read_firmware(arguments.input_name, &f);
 
   f.frequency = 16000000;
-  strncat(f.mmcu, arguments.file_name, sizeof(f.mmcu) - 1);
-  printf("firmware %s f=%d mmcu=%s\n", arguments.file_name, (int)f.frequency,
+  strncat(f.mmcu, arguments.input_name, sizeof(f.mmcu) - 1);
+  printf("firmware %s f=%d mmcu=%s\n", arguments.input_name, (int)f.frequency,
          f.mmcu);
   printf("sim_time_ns=%llu\n", arguments.sim_time_ns);
 
@@ -210,13 +231,13 @@ int main(int argc, char *argv[]) {
       avr_io_getirq(avr, AVR_IOCTL_IOPORT_GETIRQ('B'), IOPORT_IRQ_PIN3),
       led_strip_irq);
 
-  // create a named pipe
-  int mkfifo_error = mkfifo(arguments.pipe_name, 0666);
-  if (mkfifo_error != 0) {
-    perror("mkfifo failed");
+  if(arguments.use_pipe){
+    create_fifo(arguments.output_name);
+  } else {
+    remove(arguments.output_name);
+    fp = fopen(arguments.output_name, "w" );
+    printf("writing to output file %s\n", arguments.output_name);
   }
-  // printf("using named pipe: %s\n", arguments.pipe_name);
-  // fp = fopen(arguments.pipe_name, "w");
 
   avr_cycle_count_t end_cycle = avr_nsec_to_cycles(avr, arguments.sim_time_ns);
   signal(SIGALRM, percentage_signal_handler);
@@ -231,7 +252,11 @@ int main(int argc, char *argv[]) {
 
   fclose(fp);
   ws2812_destroy(led_strip);
-  remove_fifo(arguments.pipe_name);
+  if(arguments.use_pipe){
+    remove_fifo(arguments.output_name);
+  } else {
+    fclose(fp);
+  }
 
   printf("time stopped at %lluns\n", avr_cycles_to_nsec(avr, avr->cycle));
   exit(0);
