@@ -54,15 +54,19 @@ void pixels_to_truecolor(const rgb_pixel_t *pixels, uint32_t strip_length) {
   printf("\n");
 }
 
+// call the ws2812_run function every time the pin transitions from low->high or high->low.
 void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param){
     uint64_t time_nsec = avr_cycles_to_nsec(avr, avr->cycle);
     ws2812_run((LedStrip *)param, time_nsec, value);
 }
 
+// output RGB led strip data in CSV format to a file pointer
+// This function is called when the led strip latches
 void pixels_done_hook_csv(const rgb_pixel_t *pixels, const uint32_t strip_length,
                       const uint64_t time_in_ns) {
   uint8_t header_offset = 2;
-  sds * csv_line = malloc(sizeof(void *) *(header_offset + strip_length));
+  uint32_t csv_line_length = header_offset + strip_length;
+  sds * csv_line = malloc(sizeof(void *) *(csv_line_length));
   csv_line[0] = sdsfromlonglong(time_in_ns);
   csv_line[1] = sdsfromlonglong(strip_length);
 
@@ -73,17 +77,19 @@ void pixels_done_hook_csv(const rgb_pixel_t *pixels, const uint32_t strip_length
     color_hex[1] = sdsfromlonglong(current_pixel.blue);
     color_hex[2] = sdsfromlonglong(current_pixel.green);
 
-    csv_line[i + 2] = sdsjoinsds(color_hex, 3, "", 0);
+    csv_line[i + header_offset] = sdsjoinsds(color_hex, 3, "", 0);
     sdsfreesplitres(color_hex, 3);
   }
 
-  sds full_line = sdsjoinsds(csv_line, header_offset + strip_length, ",", 1);
+  sds full_line = sdsjoinsds(csv_line, csv_line_length, ",", 1);
   full_line = sdscat(full_line, "\n");
   fwrite(full_line, sizeof(char), sdslen(full_line), fp);
   sdsfree(full_line);
-  sdsfreesplitres(csv_line, header_offset + strip_length);
+  sdsfreesplitres(csv_line, csv_line_length);
 }
 
+// output RGB led strip data in a binary format to a file pointer
+// This function is called when the led strip latches
 void pixels_done_hook_binary(const rgb_pixel_t *pixels, const uint32_t strip_length,
                       const uint64_t time_in_ns) {
   // printf("time: %ldns\n", time_in_ns);
