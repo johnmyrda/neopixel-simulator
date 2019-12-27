@@ -1,15 +1,16 @@
 target=	led_sim
 simavr = ../lib/simavr
+sds = ../lib/sds/
 
 src = $(wildcard *.c)
 obj = $(src:.c=.o)
 
-OBJ 		:= obj-${shell $(CC) -dumpmachine}
+OBJ := obj-${shell $(CC) -dumpmachine}
 
 libsimavr = ${simavr}/simavr/${OBJ}/
 libsimavrparts = ${simavr}/examples/parts/${OBJ}/
 
-CFLAGS+=-I../lib/simavr/simavr/sim/ -I ../lib/simavr/examples/parts/ -Wall -Werror -O2
+CFLAGS+=-I${simavr}/simavr/sim/ -I${simavr}/examples/parts/ -I$(sds) -Wall -Werror -O2
 
 debug: CFLAGS += -DDEBUG -ggdb3
 debug: led_sim
@@ -19,8 +20,11 @@ LDFLAGS = -L${libsimavr} -lsimavr -L${libsimavrparts} -lsimavrparts -lm -lpthrea
 
 include ${simavr}/examples/Makefile.opengl
 
-led_sim: $(obj)
+sds.o:
+	$(CC) $(sds)/sds.c -c
+
+led_sim: $(obj) sds.o
 	$(CC) -o $@ $^ $(LDFLAGS)
 
 clean: 
-	rm ${target} *.o
+	rm -f ${target} *.o
