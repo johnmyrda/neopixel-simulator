@@ -20,13 +20,15 @@ LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb);
 
 void ws2812_run(LedStrip * const led_strip, uint64_t time, uint32_t value);
 
-_Bool ws2812_compare(const LedStrip * const trip_a, const LedStrip * const strip_b);
+_Bool ws2812_colors_changed(const LedStrip * const led_strip);
 
 rgb_pixel_t * ws2812_get_pixels(const LedStrip * const led_strip);
 
 uint32_t ws2812_get_length(const LedStrip * const led_strip);
 
 uint64_t ws2812_get_last_pin_change_time(const LedStrip * const led_strip);
+
+void ws2812_pixel_to_hex(const rgb_pixel_t * const pixel, char * buffer);
 
 void ws2812_destroy(LedStrip * const led_strip);
 

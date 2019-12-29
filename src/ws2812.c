@@ -24,7 +24,10 @@ typedef struct ws2812_t
     uint8_t cur_bit_index;
     uint8_t cur_byte;
     uint8_t cur_byte_index;
+    _Bool new_pixel_colors;
 } ws2812_t;
+
+char * hex_lookup = "0123456789ABCDEF";
 
 LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb){
     LedStrip * strip = malloc(sizeof(LedStrip));
@@ -35,6 +38,7 @@ LedStrip * ws2812_init(uint32_t strip_length, latch_callback_t cb){
     strip->pixels = pixels;
     strip->strip_length = strip_length;
     strip->latch_callback = cb;
+    strip->new_pixel_colors = 1; // set true initially because the first pixel colors are always fresh
 
     return strip;
 }
@@ -61,23 +65,26 @@ void ws2812_low(LedStrip * const led_metadata, uint64_t time){
             //printf("byte value: %d\n", led_metadata->cur_byte);
                         if(led_metadata->cur_byte_index < led_metadata->strip_length*sizeof(rgb_pixel_t)){
                                 //cast the pixels to a uint8_t pointer so i can count by bytes
-                                ((uint8_t *)led_metadata->pixels)[led_metadata->cur_byte_index] = led_metadata->cur_byte;
+                                uint8_t * pixel_bytes = ((uint8_t *)led_metadata->pixels);
+                                if(pixel_bytes[led_metadata->cur_byte_index] != led_metadata->cur_byte){
+                                    led_metadata->new_pixel_colors = 1; // at least one pixel changed, so set this true
+                                    pixel_bytes[led_metadata->cur_byte_index] = led_metadata->cur_byte;
+                                }
                                 //printf("byte index: %d pixel size %ld\n", led_metadata->cur_byte_index, sizeof(rgb_pixel_t));
                                 }
             led_metadata->cur_byte = 0;
             led_metadata->cur_byte_index++;
         }
     } else
+    // This indicates a latch, so the callback will be run and variables need to be reset
     if(TLL.low < time && led_metadata->cur_byte_index){
-        led_metadata->cur_byte = (led_metadata->cur_bit << led_metadata->cur_bit_index) | led_metadata->cur_byte;
-        //printf("latched.");
         led_metadata->latch_callback(led_metadata);
         led_metadata->cur_byte = 0;
         led_metadata->cur_bit_index = 0;
         led_metadata->cur_byte_index = 0;
+        led_metadata->new_pixel_colors = 0; // this will be set to true if a change occurs while writing bytes
     }
 }
-
 
 void ws2812_run(LedStrip * const led_metadata, uint64_t time, uint32_t value){
     uint64_t diff = time - led_metadata->last_pin_change_time;
@@ -91,30 +98,9 @@ void ws2812_run(LedStrip * const led_metadata, uint64_t time, uint32_t value){
 //    printf("diff: %ld time: %ld ns\n", diff, time);
 }
 
-_Bool rgb_pixel_compare(rgb_pixel_t pixel_a, rgb_pixel_t pixel_b){
-    if( pixel_a.red   == pixel_b.red && 
-        pixel_a.green == pixel_b.green &&
-        pixel_a.blue  == pixel_b.blue
-    ) {
-        return 1;
-    } else {
-        return 0;
-    }
-}
-
-_Bool ws2812_compare(const LedStrip * const strip_a, const LedStrip * const strip_b){
-    if(!strip_a || !strip_b){ // check for null
-        return 0;
-    }
-    if(strip_a->strip_length != strip_b->strip_length){
-        return 0;
-    }
-    for ( int cur_pixel = 0; cur_pixel < strip_a->strip_length; cur_pixel++ ){
-        if ( !rgb_pixel_compare(strip_a->pixels[cur_pixel], strip_b->pixels[cur_pixel]) ){
-            return 0;
-        }
-    }
-    return 1;
+// returns true if the colors of the strip have changed since the last time they were updated
+_Bool ws2812_colors_changed(const LedStrip * const led_strip){
+    return led_strip->new_pixel_colors;
 }
 
 rgb_pixel_t * ws2812_get_pixels(const LedStrip * const led_strip){
@@ -127,6 +113,22 @@ uint32_t ws2812_get_length(const LedStrip * const led_strip){
 
 uint64_t ws2812_get_last_pin_change_time(const LedStrip * const led_strip){
     return led_strip->last_pin_change_time;
+}
+
+void color_to_hex(uint8_t color, char * buffer){
+    buffer[0] = hex_lookup[(color & 0xF0) >> 4];
+    buffer[1] = hex_lookup[color & 0x0F];
+}
+
+/**
+* convert rgb pixel to hex string in RGB order
+* buffer must be a char * with enough space for 6 characters and a null terminator
+*/
+void ws2812_pixel_to_hex(const rgb_pixel_t * const pixel, char * buffer){
+    color_to_hex(pixel->red,   &buffer[0]);
+    color_to_hex(pixel->green, &buffer[2]);
+    color_to_hex(pixel->red,   &buffer[4]);
+    buffer[6] = '\0';
 }
 
 void ws2812_destroy(LedStrip * const led_strip){

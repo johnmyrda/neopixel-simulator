@@ -63,29 +63,27 @@ void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param
 // output RGB led strip data in CSV format to a file pointer
 // This function is called when the led strip latches
 void pixels_done_hook_csv(const LedStrip * const led_strip) {
-  uint8_t header_offset = 2;
-  uint32_t strip_length = ws2812_get_length(led_strip);
-  uint32_t csv_line_length = header_offset + strip_length;
-  sds * csv_line = malloc(sizeof(void *) *(csv_line_length));
-  csv_line[0] = sdsfromlonglong(ws2812_get_last_pin_change_time(led_strip));
-  csv_line[1] = sdsfromlonglong(strip_length);
+  if(ws2812_colors_changed(led_strip)){  
+    uint8_t header_offset = 2;
+    uint32_t strip_length = ws2812_get_length(led_strip);
+    uint32_t csv_line_length = header_offset + strip_length;
+    sds * csv_line = malloc(sizeof(void *) *(csv_line_length));
+    csv_line[0] = sdsfromlonglong(ws2812_get_last_pin_change_time(led_strip));
+    csv_line[1] = sdsfromlonglong(strip_length);
 
-  for(int i = 0; i < strip_length; i++){
-    rgb_pixel_t current_pixel = ws2812_get_pixels(led_strip)[i];
-    sds * color_hex = malloc(sizeof(void *)*3);
-    color_hex[0] = sdsfromlonglong(current_pixel.red);
-    color_hex[1] = sdsfromlonglong(current_pixel.blue);
-    color_hex[2] = sdsfromlonglong(current_pixel.green);
+    for(int i = 0; i < strip_length; i++){
+      rgb_pixel_t current_pixel = ws2812_get_pixels(led_strip)[i];
+      sds color_hex = sdsnewlen("", 6); // make sds string with big enough buffer for hex representation of pixel
+      ws2812_pixel_to_hex(&current_pixel, color_hex);
+      csv_line[i + header_offset] = color_hex;
+    }
 
-    csv_line[i + header_offset] = sdsjoinsds(color_hex, 3, "", 0);
-    sdsfreesplitres(color_hex, 3);
+    sds full_line = sdsjoinsds(csv_line, csv_line_length, ",", 1);
+    full_line = sdscat(full_line, "\n");
+    fwrite(full_line, sizeof(char), sdslen(full_line), fp);
+    sdsfree(full_line);
+    sdsfreesplitres(csv_line, csv_line_length);
   }
-
-  sds full_line = sdsjoinsds(csv_line, csv_line_length, ",", 1);
-  full_line = sdscat(full_line, "\n");
-  fwrite(full_line, sizeof(char), sdslen(full_line), fp);
-  sdsfree(full_line);
-  sdsfreesplitres(csv_line, csv_line_length);
 }
 
 // output RGB led strip data in a binary format to a file pointer
