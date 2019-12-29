@@ -71,7 +71,7 @@ void ws2812_low(LedStrip * const led_metadata, uint64_t time){
     if(TLL.low < time && led_metadata->cur_byte_index){
         led_metadata->cur_byte = (led_metadata->cur_bit << led_metadata->cur_bit_index) | led_metadata->cur_byte;
         //printf("latched.");
-        led_metadata->latch_callback(led_metadata->pixels, led_metadata->cur_byte_index / sizeof(rgb_pixel_t), led_metadata->last_pin_change_time);
+        led_metadata->latch_callback(led_metadata);
         led_metadata->cur_byte = 0;
         led_metadata->cur_bit_index = 0;
         led_metadata->cur_byte_index = 0;
@@ -89,6 +89,44 @@ void ws2812_run(LedStrip * const led_metadata, uint64_t time, uint32_t value){
         ws2812_low(led_metadata, diff);
     }
 //    printf("diff: %ld time: %ld ns\n", diff, time);
+}
+
+_Bool rgb_pixel_compare(rgb_pixel_t pixel_a, rgb_pixel_t pixel_b){
+    if( pixel_a.red   == pixel_b.red && 
+        pixel_a.green == pixel_b.green &&
+        pixel_a.blue  == pixel_b.blue
+    ) {
+        return 1;
+    } else {
+        return 0;
+    }
+}
+
+_Bool ws2812_compare(const LedStrip * const strip_a, const LedStrip * const strip_b){
+    if(!strip_a || !strip_b){ // check for null
+        return 0;
+    }
+    if(strip_a->strip_length != strip_b->strip_length){
+        return 0;
+    }
+    for ( int cur_pixel = 0; cur_pixel < strip_a->strip_length; cur_pixel++ ){
+        if ( !rgb_pixel_compare(strip_a->pixels[cur_pixel], strip_b->pixels[cur_pixel]) ){
+            return 0;
+        }
+    }
+    return 1;
+}
+
+rgb_pixel_t * ws2812_get_pixels(const LedStrip * const led_strip){
+    return led_strip->pixels;
+}
+
+uint32_t ws2812_get_length(const LedStrip * const led_strip){
+    return led_strip->strip_length;
+}
+
+uint64_t ws2812_get_last_pin_change_time(const LedStrip * const led_strip){
+    return led_strip->last_pin_change_time;
 }
 
 void ws2812_destroy(LedStrip * const led_strip){

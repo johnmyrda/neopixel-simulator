@@ -62,16 +62,16 @@ void ws2812_pin_changed_hook(struct avr_irq_t * irq, uint32_t value, void *param
 
 // output RGB led strip data in CSV format to a file pointer
 // This function is called when the led strip latches
-void pixels_done_hook_csv(const rgb_pixel_t *pixels, const uint32_t strip_length,
-                      const uint64_t time_in_ns) {
+void pixels_done_hook_csv(const LedStrip * const led_strip) {
   uint8_t header_offset = 2;
+  uint32_t strip_length = ws2812_get_length(led_strip);
   uint32_t csv_line_length = header_offset + strip_length;
   sds * csv_line = malloc(sizeof(void *) *(csv_line_length));
-  csv_line[0] = sdsfromlonglong(time_in_ns);
+  csv_line[0] = sdsfromlonglong(ws2812_get_last_pin_change_time(led_strip));
   csv_line[1] = sdsfromlonglong(strip_length);
 
   for(int i = 0; i < strip_length; i++){
-    rgb_pixel_t current_pixel = pixels[i];
+    rgb_pixel_t current_pixel = ws2812_get_pixels(led_strip)[i];
     sds * color_hex = malloc(sizeof(void *)*3);
     color_hex[0] = sdsfromlonglong(current_pixel.red);
     color_hex[1] = sdsfromlonglong(current_pixel.blue);
@@ -110,7 +110,7 @@ void percentage_signal_handler(){
 void print_percentage(avr_cycle_count_t current_cycle, avr_cycle_count_t end_cycle){
       printf("%.2f%% cycle=%llu\n", 100.0 * current_cycle / end_cycle, current_cycle);
       print_percentage_flag = 0;
-      alarm(1);
+      alarm(1); // reset alarm so this function triggers again in 1 second
 }
 
 // converts a number of nsec to a number of machine cycles, at current speed
@@ -247,7 +247,7 @@ int main(int argc, char *argv[]) {
 
   avr_cycle_count_t end_cycle = avr_nsec_to_cycles(avr, arguments.sim_time_ns);
   signal(SIGALRM, percentage_signal_handler);
-  alarm(1);
+  alarm(1); // set percentage_signal_handler to trigger one second from now
   while (avr->cycle <= end_cycle) {
     avr_run(avr);
     if(print_percentage_flag){
