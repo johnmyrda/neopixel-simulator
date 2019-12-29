@@ -166,7 +166,7 @@ struct arg_struct parse_args(int argc, char *argv[]) {
   arguments.output_name = "led_out.csv";
 
   int opt;
-  while ((opt = getopt(argc, argv, ":n:t:f:p:h")) != -1) {
+  while ((opt = getopt(argc, argv, ":n:t:f:o:ph")) != -1) {
     switch (opt) {
     case 'n': // simulation time in nanoseconds
       arguments.sim_time_ns = strtoull(optarg, NULL, 10);
