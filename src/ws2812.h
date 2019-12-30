@@ -3,8 +3,8 @@
 
 #include <stdio.h>
 #include <string.h>
-#include "sim_irq.h"
-#include "sim_time.h"
+#include <stdint.h>
+#include <stdlib.h>
 
 typedef struct rgb_pixel_t {
     uint8_t red;

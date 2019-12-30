@@ -1,5 +1,4 @@
 #include "ws2812.h"
-#include <stdlib.h>
 
 typedef struct timing_t
 {
