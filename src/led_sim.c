@@ -13,6 +13,7 @@
 // simavr
 #include "avr_ioport.h"
 #include "sim_avr.h"
+#include "sim_time.h"
 #include "sim_elf.h"
 #include "sim_gdb.h"
 #include "sim_irq.h"

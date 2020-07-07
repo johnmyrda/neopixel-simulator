@@ -2,3 +2,4 @@ venv
 *.o
 tags
 .vscode
+build
